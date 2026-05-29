@@ -137,6 +137,28 @@ kubectl -n realtime-map-notice top pods
 kubectl -n realtime-map-notice describe hpa location-service-hpa
 ```
 
+### HPA 壓測結果
+
+使用漸進式壓測腳本（300→3000→300 用戶），HPA 配置：maxReplicas 8、targetCPU 30%、cpu request 100m。
+
+| 並發用戶 | 無 HPA Location | 無 HPA Event | 有 HPA Location | 有 HPA Event | Pods（有HPA） |
+|----------|-----------------|--------------|-----------------|--------------|---------------|
+| 300 | 100% | 100% | 100% | 100% | 4 / 1 |
+| 800 | 99.5% | 99.9% | **100%** | **100%** | 8 / 2 |
+| 1500 | 93.2% | 95.5% | **99.1%** | **98.5%** | 8 / 2 |
+| 2000 | 83.9% | 78.5% | **98.1%** | **99.9%** | 8 / 3 |
+| 3000 | 94.8% | **0%** ❌ | **100%** | **100%** | 8 / 3 |
+
+**關鍵發現**：有 HPA 在 3000 人並發下仍維持 100% 成功率，無 HPA 在 3000 人時 Event Service 完全崩潰。
+
+完整圖表比較報告見 `hpa_comparison.html`。
+
+### HPA 參數調優
+
+- **CPU request 5m→100m**：原始 5m 導致 idle CPU 就佔 60%，HPA 永遠誤判需擴展。修正後 idle 只佔 3-5%。
+- **targetCPU 50%→30%**：30% 讓 HPA 更早觸發擴展，Pod 數量更充足，在高併發下成功率更好。
+- **maxReplicas 8+6→8+8**：Location 與 Event 兩個服務統一為 8 個 Pod 上限，符合 minikube 20 CPU 資源限制。
+
 ## Pod 容錯 Demo
 
 刪除一個 Notification Service Pod：

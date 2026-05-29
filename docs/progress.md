@@ -2,10 +2,10 @@
 
 本文件用來即時更新 `realtime_map_notice` 的開發進度。`project-plan.md` 是原始計畫，這份 `progress.md` 是目前實際狀態。
 
-最後更新：2026-05-27  
-目前分支：`dev_hermes`  
-目前定位：第 7 週末 / 第 8 週初  
-整體進度估計：95%
+最後更新：2026-05-29
+目前分支：`dev_K8s`
+目前定位：第 7 週末 / 第 8 週初
+整體進度估計：96%
 
 ## 狀態標記
 
@@ -23,7 +23,7 @@
 | 第 1 階段：後端骨架 | 1-2 | Done | 95% | 三個 FastAPI service、shared module、Dockerfile、docker-compose、CORS、`.dockerignore` 已存在；`docker compose up --build -d` 已實測成功 | 補更完整的跨服務自動化測試 |
 | 第 2 階段：Web App 前端 | 3-5 | Partial | 84% | React + Vite + Leaflet 可 build，地圖 smoke test 可開啟；WebSocket client、EventForm、NotificationBanner 與 API client 已有 Vitest 測試 | 串接真實後端服務並做瀏覽器端完整流程 QA |
 | 第 3 階段：即時資料與推播整合 | 4-6 | Done | 94% | Redis GEO、last_seen 過濾、WebSocket Pub/Sub、pong timeout heartbeat、fan-out limit、client_event_id 去重已實作；Docker Compose cross-service 完整鏈路與 WebSocket no-cross-talk 測試已通過 | 保存 Demo 截圖，後續可補 K8s 多副本 WebSocket 實測 |
-| 第 4 階段：Kubernetes 與壓測 | 6-8 | Done | 96% | Docker Compose 已可跑；Docker Desktop Kubernetes 已 Ready；K8s 實機部署成功；metrics-server 已可提供 CPU 指標；500 人 cluster 內部壓測已觸發 HPA 擴到 5 個 Pod；Notification Pod 刪除後可自動補回 | 整理 HPA 與 Pod 容錯截圖，補 1,000 人壓測結果 |
+|| 第 4 階段：Kubernetes 與壓測 | 6-8 | Done | 98% | Docker Compose 已可跑；Docker Desktop Kubernetes 已 Ready；K8s 實機部署成功；metrics-server 已可提供 CPU 指標；500 人 cluster 內部壓測已觸發 HPA 擴到 5 個 Pod；Notification Pod 刪除後可自動補回；**HPA 調優完成（8+8, targetCPU 30%）；漸進式 300→3000 人壓測完成，有 HPA 在 3000 人維持 100%，無 HPA 崩潰至 0%**；圖表比較報告已產出 | 整理截圖，補簡報素材 |
 | 跨階段：自動化測試 | 7-8 | Partial | 56% | `tests/requirements-test.txt` 已補齊 FastAPI/Redis 測試相依；後端 unit + API/WebSocket contract tests 31 個通過；前端 Vitest 4 個通過 | 補真實 Redis、更多前端元件測試 |
 | 第 5 階段：報告與展示整理 | 8-10 | Partial | 32% | project-plan、system、demo 腳本初稿已存在；已補 Cloudflare Tunnel 對外入口規劃 | 產出實測截圖、壓測數據、Demo 錄影或備案素材 |
 
@@ -39,7 +39,7 @@
 | 500 公尺區域通知 | Done | 92% | Event Service 查 nearby + 通知 active users 已實作；Docker Compose cross-service 測試確認附近使用者收到、遠端使用者不在 delivered_to |
 | WebSocket 主動推播 | Done | 94% | Pub/Sub + WebSocket + pong timeout heartbeat 已實作；後端 route contract、前端 WebSocket client、Docker Compose cross-service no-cross-talk 測試均通過 |
 | 500-1,000 人 simulator | Partial | 85% | 本機 simulator 支援固定 duration、timeout 與成功/失敗統計；cluster 內部 Job 可避免 port-forward 瓶頸；500 人壓測已成功 | 尚未跑 1,000 人測試與長時間穩定性測試 |
-| K8s Location Service HPA | Done | 95% | metrics-server 可讀 CPU；500 users / 60s cluster 內部壓測 `success=12331 failed=3`，HPA 最高 `cpu: 259%/60%`，Location Service 從 1 擴到 5 Pod | 保存 Demo 截圖與補 1,000 人結果 |
+|| K8s Location Service HPA | Done | 100% | metrics-server 可讀 CPU；HPA 調優完成（maxReplicas 8, targetCPU 30%, cpu request 100m）；漸進式 300→3000 人壓測：有 HPA 在 3000 人維持 100% 成功率，無 HPA Event 0% 崩潰；圖表比較報告 `hpa_comparison.html` 已產出 | 保存截圖，放入簡報 |
 | K8s Notification Pod 容錯 | Done | 95% | 多副本 YAML 與刪 Pod 腳本已存在；實測刪除 Pod 後 Deployment 自動補回至 3/3 Running | 保存 Demo 截圖 |
 
 ## 測試與驗證
@@ -58,7 +58,7 @@
 | WebSocket integration tests | Done | heartbeat pong timeout unit tests、`/ws/{user_id}` route contract test、cross-service WebSocket no-cross-talk 測試通過 | 可選補 K8s 多副本 WebSocket 實測 |
 | K8s deployment test | Done | `.\scripts\k8s-build-images.ps1`、`.\scripts\k8s-deploy.ps1`、port-forward health check 均成功；Redis 1、Location 1、Event 2、Notification 3 全部 Running | 尚需保存 Demo 截圖 |
 | K8s metrics-server | Done | `.\scripts\k8s-install-metrics-server.ps1` 成功；`kubectl top nodes` 與 `kubectl top pods -n realtime-map-notice` 可顯示 CPU / memory；HPA 顯示 `cpu: 2%/60%` | 尚需壓測時觀察 HPA 擴展 |
-| Load test | Partial | `scripts/k8s-load-test.ps1` 與 `scripts/k8s-load-test-job.ps1` 已建立；500 users / 60s cluster 內部壓測成功並觸發 HPA；port-forward 壓測已確認不適合大量流量 | 1,000 users 結果與截圖 |
+|| Load test | Done | `scripts/k8s-load-test.ps1` 與 `scripts/k8s-load-test-job.ps1` 已建立；500 users / 60s cluster 內部壓測成功並觸發 HPA；**漸進式 300→3000 人壓測完成，HPA 8+8 targetCPU 30% 調優，有 HPA 3000 人 100% 成功率，圖表比較 `hpa_comparison.html` 已產出** | 截圖放入簡報 |
 
 ## 目前阻塞
 
@@ -78,6 +78,7 @@
 
 | 日期 | 更新內容 | 驗證 |
 |------|----------|------|
+| 2026-05-29 | HPA 壓測完成：漸進式 300→3000 人，有 HPA 3000 人 100% 成功率、無 HPA Event 0% 崩潰；HPA 調優（8+8, targetCPU 30%, cpu request 100m）；圖表比較 `hpa_comparison.html` 已產出；所有文件加入 HPA 內容 | 壓測 JSON 數據 + Chart.js 圖表 |
 | 2026-05-28 | 全面更新文件以反映 Redis Pub/Sub 架構變更與最新功能狀態 | 文件更新 |
 | 2026-05-27 | 執行 Docker Compose cross-service integration，驗證 Location → Redis → Event → Notification → WebSocket 完整鏈路與 WebSocket no-cross-talk；修正 integration 腳本清理 orphan containers | `.\scripts\run-integration-tests.ps1`，2 passed |
 | 2026-05-26 | 建立 Cloudflare 對外入口骨架，使用 `map.avision-gb10.org`、edge proxy、cloudflared config 範本與前端正式環境變數 | 文件與設定檔更新；尚未建立實際 Tunnel credentials |

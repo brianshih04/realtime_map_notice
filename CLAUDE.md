@@ -86,13 +86,30 @@ Browser ← nginx (/ws/*) ←─────────────────
 
 ## 壓力測試結果
 
+### Docker Compose 部署（固定 Pod）
+
 | 規模 | Location | Event | Comment | Query | 總 RPS |
 |------|----------|-------|---------|-------|--------|
 | 200 人 | 99.1% ✅ | 99.0% ✅ | 100% ✅ | 100% ✅ | 112 |
 | 500 人 | 98.4% ✅ | 100% ✅ | 99.1% ✅ | 100% ✅ | 277 |
 | 1000 人 | 95.5% ⚠️ | 100% ✅ | 100% ✅ | 100% ✅ | 271 |
 
-Redis Pub/Sub 架構下，Event/Comment/Query 在 1000 人時仍 100% 成功率。Location Service 是下一個瓶頸（可加 workers 或 Redis pipeline batch write）。
+Redis Pub/Sub 架構下，Event/Comment/Query 在 1000 人時仍 100% 成功率。
+
+### Kubernetes HPA 壓力測試（自動擴縮 vs 固定 Pod）
+
+漸進式壓測（300→3000→300 用戶），HPA 配置：maxReplicas 8、targetCPU 30%、cpu request 100m：
+
+| 並發用戶 | 無 HPA Location | 無 HPA Event | 有 HPA Location | 有 HPA Event | Pods（有HPA） |
+|----------|-----------------|--------------|-----------------|--------------|---------------|
+| 300 | 100% | 100% | 100% | 100% | 4 / 1 |
+| 800 | 99.5% | 99.9% | **100%** | **100%** | 8 / 2 |
+| 1500 | 93.2% | 95.5% | **99.1%** | **98.5%** | 8 / 2 |
+| 2000 | 83.9% | 78.5% | **98.1%** | **99.9%** | 8 / 3 |
+| 3000 | 94.8% | **0%** ❌ | **100%** | **100%** | 8 / 3 |
+
+有 HPA 在 3000 人並發下仍維持 100% 成功率；無 HPA 在 3000 人時 Event Service 完全崩潰。
+完整圖表比較：`hpa_comparison.html`。Location Service 是下一個瓶頸（可加 workers 或 Redis pipeline batch write）。
 
 ## Deployment
 

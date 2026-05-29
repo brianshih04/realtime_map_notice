@@ -2,9 +2,9 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: notification-service
-  namespace: realtime-map-notice
+  namespace: realtime-map
 spec:
-  replicas: 3
+  replicas: 1
   selector:
     matchLabels:
       app: notification-service
@@ -16,14 +16,18 @@ spec:
       containers:
         - name: notification-service
           image: realtime-map-notice/notification-service:latest
-          imagePullPolicy: IfNotPresent
+          imagePullPolicy: Never
           ports:
             - containerPort: 8000
           env:
             - name: REDIS_URL
               value: redis://redis:6379/0
             - name: CORS_ALLOW_ORIGINS
-              value: http://localhost:5173,http://localhost:3000
+              value: "*"
+            - name: WORKERS
+              value: "1"
+            - name: LOG_LEVEL
+              value: "info"
           resources:
             requests:
               cpu: 100m
@@ -48,7 +52,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: notification-service
-  namespace: realtime-map-notice
+  namespace: realtime-map
 spec:
   selector:
     app: notification-service

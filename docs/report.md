@@ -137,6 +137,7 @@
 | 技術 | 用途 | 選擇原因 |
 |------|------|----------|
 | Docker Compose | 容器編排 | 單機部署簡單、服務隔離、可重現環境 |
+| Kubernetes + HPA | 自動擴展 | HPA 根據 CPU 自動擴縮 Pod，3000 人壓測成功率從 0% 提升至 100% |
 | nginx | 反向代理 | 統一入口、靜態檔託管、WebSocket upgrade |
 | Cloudflare Tunnel | 對外連線 | 免開 inbound port、自動 HTTPS、DDoS 防護 |
 
@@ -244,6 +245,31 @@
 
 **根因**：Location Service 是吞吐量最高的服務（每 1.5 秒接收所有使用者的座標更新），即使 4 個 gunicorn workers 也接近極限。
 
+**解決方案**：Kubernetes HPA 自動擴展
+
+在 Docker Compose 固定 Pod 數量的部署下，Location Service 無法動態擴展。將服務部署到 Kubernetes 後，透過 HPA（Horizontal Pod Autoscaler）根據 CPU 使用率自動增加 Pod 數量，可有效分散流量。
+
+實測壓測結果（漸進式 300→3000 用戶）：
+
+| 並發用戶 | 無 HPA Location | 無 HPA Event | 有 HPA Location | 有 HPA Event | Pods（有HPA） |
+|----------|-----------------|--------------|-----------------|--------------|---------------|
+| 300 | 100% | 100% | 100% | 100% | 4 / 1 |
+| 800 | 99.5% | 99.9% | **100%** | **100%** | 8 / 2 |
+| 1500 | 93.2% | 95.5% | **99.1%** | **98.5%** | 8 / 2 |
+| 2000 | 83.9% | 78.5% | **98.1%** | **99.9%** | 8 / 3 |
+| 3000 | 94.8% | **0%** ❌ | **100%** | **100%** | 8 / 3 |
+
+**關鍵發現**：
+- 無 HPA 在 3000 人並發時，Event Service 成功率降至 **0%**，完全崩潰
+- 有 HPA 在 3000 人並發時，Location 與 Event 服務均維持 **100%** 成功率
+- HPA 在 300 人時即開始擴展（Location 1→4 Pods），提前應對流量增長
+- 延遲方面，有 HPA 的 P50 延遲在高併發下顯著低於無 HPA（因 Pod 數量增加分散了負載）
+
+**HPA 參數調優過程**：
+- **CPU request 5m→100m**：原始設定 5m 太低，idle 狀態下 CPU 用量即佔 60%，HPA 永遠判定需擴展，修正後 idle 只佔 3-5%
+- **targetCPU 50%→30%**：50% 擴展幅度不夠明顯，30% 讓 HPA 更早觸發擴展，Pod 數量更充足
+- **maxReplicas 8+6→8+8**：兩個服務統一為 8 個 Pod 上限，minikube 20 CPU 資源允許
+
 **可能的改善方向**：
 - 增加 worker 數量（目前 4，可提升至 8–16）
 - 使用 Redis pipeline 批次寫入
@@ -301,7 +327,8 @@
 2. **微服務架構具擴展性**：三個獨立服務可根據各自的負載特性獨立擴展（Location Service 需要 4 workers 應付高頻座標更新，Event Service 同樣配置 4 workers，Notification Service 因 WebSocket sticky connection 特性保持單 worker）。
 3. **Redis Pub/Sub 消除推播瓶頸**：從 HTTP fanout 演進到 Redis Pub/Sub，事件建立成功率從 8.1% 提升至 100%。
 4. **壓力測試驗證穩定性**：在 1000 人同時上線的規模下，Event、Comment、Query 三個端點成功率均達 100%，系統整體吞吐量 271 RPS。
-5. **完整的容器化部署**：Docker Compose + nginx + Cloudflare Tunnel，一條指令即可完成部署，對外提供 HTTPS 安全連線。
+5. **Kubernetes HPA 自動擴展**：在 Kubernetes 部署中，HPA 讓 Location Service 與 Event Service 根據 CPU 使用率自動擴展（最多 8 Pods）。3000 人壓測下，有 HPA 成功率維持 100%，無 HPA 時 Event Service 完全崩潰（0%），證明自動擴展是高併發場景的關鍵。
+6. **完整的容器化部署**：Docker Compose + Kubernetes + nginx + Cloudflare Tunnel，支援單機部署與自動擴展，對外提供 HTTPS 安全連線。
 
 未來可進一步改善的方向包括：增加使用者認證系統、支援多校園擴展、開發行動 App 版本、以及導入 AI 輔助事件分類。
 

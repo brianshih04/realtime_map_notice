@@ -163,7 +163,7 @@
 - 刪除 Pod 後 Kubernetes 會自動補回副本。
 - 系統在 Demo 過程中仍可處理位置更新與事件推播。
 
-目前 repo 已完成第 4 階段所需的 YAML、HPA、resource requests/limits、readiness/liveness probes、壓測入口與 Demo 腳本。Docker Desktop Kubernetes 實測已完成：500 users / 60s cluster 內部壓測可觸發 Location Service HPA 擴展到 5 個 Pod，Notification Service Pod 刪除後可自動補回。
+目前 repo 已完成第 4 階段所需的 YAML、HPA、resource requests/limits、readiness/liveness probes、壓測入口與 Demo 腳本。Docker Desktop Kubernetes 實測已完成：500 users / 60s cluster 內部壓測可觸發 Location Service HPA 擴展到 5 個 Pod，Notification Service Pod 刪除後可自動補回。**HPA 調優完成（8+8, targetCPU 30%, cpu request 100m），漸進式 300→3000 人壓測：有 HPA 在 3000 人維持 100% 成功率，無 HPA Event 0% 崩潰，圖表比較報告 `hpa_comparison.html` 已產出。**
 
 ### 跨階段工作：自動化測試
 
