@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HPA 壓力測試比較 — 即時校園地圖通知系統</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    background: #0f172a;
+    color: #e2e8f0;
+    padding: 2rem;
+  }
+  .container { max-width: 1200px; margin: 0 auto; }
+  h1 {
+    text-align: center;
+    font-size: 1.8rem;
+    margin-bottom: 0.3rem;
+    background: linear-gradient(135deg, #60a5fa, #a78bfa);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  .subtitle {
+    text-align: center;
+    color: #94a3b8;
+    margin-bottom: 2rem;
+    font-size: 0.95rem;
+  }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
+  .card {
+    background: #1e293b;
+    border-radius: 12px;
+    padding: 1.5rem;
+    border: 1px solid #334155;
+  }
+  .card-title {
+    font-size: 1.1rem;
+    font-weight: 600;
+    margin-bottom: 1rem;
+    color: #f1f5f9;
+  }
+  .card canvas { width: 100% !important; }
+  .table-wrap {
+    grid-column: 1 / -1;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.85rem;
+  }
+  th {
+    background: #334155;
+    padding: 10px 12px;
+    text-align: center;
+    font-weight: 600;
+    color: #f1f5f9;
+    position: sticky;
+    top: 0;
+  }
+  td {
+    padding: 8px 12px;
+    text-align: center;
+    border-bottom: 1px solid #1e293b;
+  }
+  tr:nth-child(even) td { background: #1e293b; }
+  tr:nth-child(odd) td { background: #263248; }
+  .good { color: #4ade80; font-weight: 600; }
+  .warn { color: #fbbf24; font-weight: 600; }
+  .bad { color: #f87171; font-weight: 600; }
+  .phase { font-weight: 600; color: #60a5fa; }
+  .insight {
+    grid-column: 1 / -1;
+    display: flex;
+    gap: 1.5rem;
+    flex-wrap: wrap;
+  }
+  .insight-card {
+    flex: 1;
+    min-width: 280px;
+    background: linear-gradient(135deg, #1e293b, #263248);
+    border-radius: 12px;
+    padding: 1.5rem;
+    border: 1px solid #334155;
+  }
+  .insight-card h3 {
+    font-size: 1rem;
+    color: #60a5fa;
+    margin-bottom: 0.5rem;
+  }
+  .insight-card p {
+    font-size: 0.9rem;
+    line-height: 1.6;
+    color: #cbd5e1;
+  }
+  .insight-card .num {
+    font-size: 2rem;
+    font-weight: 700;
+    margin: 0.5rem 0;
+  }
+  .num.green { color: #4ade80; }
+  .num.red { color: #f87171; }
+  .legend {
+    display: flex;
+    gap: 2rem;
+    justify-content: center;
+    margin-bottom: 1.5rem;
+    font-size: 0.9rem;
+  }
+  .legend span::before {
+    content: '';
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    margin-right: 6px;
+    vertical-align: middle;
+  }
+  .legend .no-hpa::before { background: #f87171; }
+  .legend .with-hpa::before { background: #4ade80; }
+  @media (max-width: 768px) {
+    .grid { grid-template-columns: 1fr; }
+    body { padding: 1rem; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>HPA 壓力測試比較報告</h1>
+  <p class="subtitle">即時校園地圖通知系統 — K8s 自動擴縮 vs 固定 1 Pod</p>
+
+  <div class="legend">
+    <span class="no-hpa">無 HPA（固定 1 Pod）</span>
+    <span class="with-hpa">有 HPA（自動擴縮 1~8 Pods）</span>
+  </div>
+
+  <!-- 圖表 Row 1 -->
+  <div class="grid">
+    <!-- Location 成功率 -->
+    <div class="card">
+      <div class="card-title">📍 Location Service 成功率</div>
+      <canvas id="locChart"></canvas>
+    </div>
+    <!-- Event 成功率 -->
+    <div class="card">
+      <div class="card-title">📌 Event Service 成功率</div>
+      <canvas id="evtChart"></canvas>
+    </div>
+    <!-- 延遲 -->
+    <div class="card">
+      <div class="card-title">⏱️ Location Service P50 延遲</div>
+      <canvas id="latChart"></canvas>
+    </div>
+    <!-- Pod 數 -->
+    <div class="card">
+      <div class="card-title">📦 HPA Pod 數變化</div>
+      <canvas id="podChart"></canvas>
+    </div>
+  </div>
+
+  <!-- 詳細數據表 -->
+  <div class="grid" style="margin-top:1.5rem;">
+    <div class="card table-wrap">
+      <div class="card-title">📊 詳細數據（Ramp-Up 階段）</div>
+      <table>
+        <thead>
+          <tr>
+            <th>並發用戶</th>
+            <th colspan="3">🔴 無 HPA（固定 1 Pod）</th>
+            <th colspan="3">🟢 有 HPA（自動擴縮）</th>
+            <th>Pods<br>（有HPA）</th>
+          </tr>
+          <tr>
+            <th></th>
+            <th>Loc 成功率</th><th>Event 成功率</th><th>Loc P50</th>
+            <th>Loc 成功率</th><th>Event 成功率</th><th>Loc P50</th>
+            <th>Loc / Evt</th>
+          </tr>
+        </thead>
+        <tbody id="dataBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- 關鍵洞察 -->
+  <div class="grid insight" style="margin-top:1.5rem;">
+    <div class="insight-card">
+      <h3>🚀 高負載存活率</h3>
+      <div class="num green">3000人 100%</div>
+      <p>有 HPA 在 3000 人並發下仍維持 100% 成功率；無 HPA 在 3000 人時 Event Service 完全崩潰（0%）。</p>
+    </div>
+    <div class="insight-card">
+      <h3>📉 延遲降低</h3>
+      <div class="num green">↓ 30%</div>
+      <p>2000 人並發時，有 HPA 的 P50 延遲 4146ms vs 無 HPA 的 5951ms，降低約 30%。</p>
+    </div>
+    <div class="insight-card">
+      <h3>📦 自動擴展路徑</h3>
+      <div class="num" style="color:#60a5fa;">1 → 8</div>
+      <p>Location Service 從 1 Pod 自動擴展到 8 Pods（最大值），充分展示 K8s HPA 能力。</p>
+    </div>
+  </div>
+</div>
+
+<script>
+const rampUpUsers = [300, 500, 800, 1000, 1500, 2000, 2500, 3000];
+
+// Ramp-up only (first 8 stages)
+const noHpa = {
+  loc: [100.0, 100.0, 99.5, 97.9, 93.2, 83.9, 78.2, 94.8],
+  evt: [100.0, 100.0, 99.9, 97.4, 95.5, 78.5, 87.0, 0.0],
+  p50: [5, 446, 1634, 3682, 5341, 5951, 9287, 7],
+  locPods: [1,1,1,1,1,1,1,1],
+  evtPods: [1,1,1,1,1,1,1,1],
+};
+const withHpa = {
+  loc: [100.0, 100.0, 100.0, 95.2, 99.1, 98.1, 100.0, 100.0],
+  evt: [100.0, 100.0, 100.0, 95.0, 98.5, 99.9, 100.0, 100.0],
+  p50: [5, 443, 1157, 2152, 3367, 4146, 6688, 9289],
+  locPods: [4,4,8,8,8,8,8,8],
+  evtPods: [1,1,2,2,2,3,3,3],
+};
+
+const chartOpts = (titleText) => ({
+  responsive: true,
+  plugins: {
+    legend: { labels: { color: '#e2e8f0', font: { size: 12 } } },
+    tooltip: { mode: 'index', intersect: false }
+  },
+  scales: {
+    x: { title: { display: true, text: '並發用戶數', color: '#94a3b8' }, grid: { color: '#334155' }, ticks: { color: '#94a3b8' } },
+    y: { title: { display: true, text: titleText, color: '#94a3b8' }, grid: { color: '#334155' }, ticks: { color: '#94a3b8' }, min: 0 }
+  }
+});
+
+function makeDatasets(a, b, label1, label2) {
+  return [
+    { label: label1, data: a, borderColor: '#f87171', backgroundColor: 'rgba(248,113,113,0.15)', fill: true, tension: 0.3, pointRadius: 4 },
+    { label: label2, data: b, borderColor: '#4ade80', backgroundColor: 'rgba(74,222,128,0.15)', fill: true, tension: 0.3, pointRadius: 4 }
+  ];
+}
+
+// Location 成功率
+new Chart(document.getElementById('locChart'), {
+  type: 'line',
+  data: { labels: rampUpUsers.map(u => u+''), datasets: makeDatasets(noHpa.loc, withHpa.loc, '無 HPA', '有 HPA') },
+  options: { ...chartOpts('成功率 (%)'), scales: { ...chartOpts('').scales, y: { ...chartOpts('').scales.y, min: 50, max: 105 } } }
+});
+
+// Event 成功率
+new Chart(document.getElementById('evtChart'), {
+  type: 'line',
+  data: { labels: rampUpUsers.map(u => u+''), datasets: makeDatasets(noHpa.evt, withHpa.evt, '無 HPA', '有 HPA') },
+  options: { ...chartOpts('成功率 (%)'), scales: { ...chartOpts('').scales, y: { ...chartOpts('').scales.y, min: 0, max: 105 } } }
+});
+
+// P50 延遲
+new Chart(document.getElementById('latChart'), {
+  type: 'line',
+  data: { labels: rampUpUsers.map(u => u+''), datasets: makeDatasets(noHpa.p50, withHpa.p50, '無 HPA', '有 HPA') },
+  options: { ...chartOpts('延遲 (ms)') }
+});
+
+// Pod 數
+new Chart(document.getElementById('podChart'), {
+  type: 'line',
+  data: {
+    labels: rampUpUsers.map(u => u+''),
+    datasets: [
+      { label: 'Location Pods（有 HPA）', data: withHpa.locPods, borderColor: '#60a5fa', backgroundColor: 'rgba(96,165,250,0.15)', fill: true, tension: 0.3, pointRadius: 5, borderWidth: 2 },
+      { label: 'Event Pods（有 HPA）', data: withHpa.evtPods, borderColor: '#a78bfa', backgroundColor: 'rgba(167,139,250,0.15)', fill: true, tension: 0.3, pointRadius: 5, borderWidth: 2 },
+      { label: '固定 Pods（無 HPA）', data: noHpa.locPods.map(() => 1), borderColor: '#64748b', borderDash: [5,5], tension: 0, pointRadius: 0 }
+    ]
+  },
+  options: {
+    ...chartOpts('Pod 數量'),
+    scales: { ...chartOpts('').scales, y: { ...chartOpts('').scales.y, min: 0, max: 10, ticks: { stepSize: 1 } } }
+  }
+});
+
+// 表格
+const tbody = document.getElementById('dataBody');
+const cls = (v) => v >= 99 ? 'good' : v >= 90 ? 'warn' : 'bad';
+const formatMs = (v) => v.toLocaleString() + 'ms';
+rampUpUsers.forEach((u, i) => {
+  const isRamp = u <= 1000;
+  tbody.innerHTML += `<tr>
+    <td class="phase">${u.toLocaleString()}</td>
+    <td class="${cls(noHpa.loc[i])}">${noHpa.loc[i].toFixed(1)}%</td>
+    <td class="${cls(noHpa.evt[i])}">${noHpa.evt[i].toFixed(1)}%</td>
+    <td>${formatMs(noHpa.p50[i])}</td>
+    <td class="${cls(withHpa.loc[i])}">${withHpa.loc[i].toFixed(1)}%</td>
+    <td class="${cls(withHpa.evt[i])}">${withHpa.evt[i].toFixed(1)}%</td>
+    <td>${formatMs(withHpa.p50[i])}</td>
+    <td>${withHpa.locPods[i]} / ${withHpa.evtPods[i]}</td>
+  </tr>`;
+});
+</script>
+</body>
+</html>
