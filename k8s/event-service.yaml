@@ -2,7 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: event-service
-  namespace: realtime-map-notice
+  namespace: realtime-map
 spec:
   replicas: 2
   selector:
@@ -16,28 +16,28 @@ spec:
       containers:
         - name: event-service
           image: realtime-map-notice/event-service:latest
-          imagePullPolicy: IfNotPresent
+          imagePullPolicy: Never
           ports:
             - containerPort: 8000
           env:
             - name: REDIS_URL
               value: redis://redis:6379/0
-            - name: NOTIFICATION_SERVICE_URL
-              value: http://notification-service:8000
-            - name: NOTIFICATION_FANOUT_CONCURRENCY
-              value: "100"
+            - name: CORS_ALLOW_ORIGINS
+              value: "*"
             - name: EVENT_IDEMPOTENCY_PREFIX
               value: realtime_map_notice:event:idempotency
             - name: EVENT_IDEMPOTENCY_TTL_SECONDS
               value: "300"
-            - name: CORS_ALLOW_ORIGINS
-              value: http://localhost:5173,http://localhost:3000
+            - name: WORKERS
+              value: "2"
+            - name: LOG_LEVEL
+              value: "info"
           resources:
             requests:
               cpu: 100m
-              memory: 128Mi
+              memory: 64Mi
             limits:
-              cpu: 500m
+              cpu: "1"
               memory: 256Mi
           readinessProbe:
             httpGet:
@@ -56,10 +56,30 @@ apiVersion: v1
 kind: Service
 metadata:
   name: event-service
-  namespace: realtime-map-notice
+  namespace: realtime-map
 spec:
   selector:
     app: event-service
   ports:
     - port: 8000
       targetPort: 8000
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: event-service-hpa
+  namespace: realtime-map
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: event-service
+  minReplicas: 1
+  maxReplicas: 8
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 30

@@ -2,9 +2,9 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: location-service
-  namespace: realtime-map-notice
+  namespace: realtime-map
 spec:
-  replicas: 1
+  replicas: 2
   selector:
     matchLabels:
       app: location-service
@@ -16,22 +16,26 @@ spec:
       containers:
         - name: location-service
           image: realtime-map-notice/location-service:latest
-          imagePullPolicy: IfNotPresent
+          imagePullPolicy: Never
           ports:
             - containerPort: 8000
           env:
             - name: REDIS_URL
               value: redis://redis:6379/0
             - name: CORS_ALLOW_ORIGINS
-              value: http://localhost:5173,http://localhost:3000
+              value: "*"
             - name: DEFAULT_ALERT_RADIUS_METERS
               value: "500"
+            - name: WORKERS
+              value: "2"
+            - name: LOG_LEVEL
+              value: "info"
           resources:
             requests:
               cpu: 100m
-              memory: 128Mi
+              memory: 64Mi
             limits:
-              cpu: 500m
+              cpu: "1"
               memory: 256Mi
           readinessProbe:
             httpGet:
@@ -50,7 +54,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: location-service
-  namespace: realtime-map-notice
+  namespace: realtime-map
 spec:
   selector:
     app: location-service
@@ -62,18 +66,18 @@ apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
   name: location-service-hpa
-  namespace: realtime-map-notice
+  namespace: realtime-map
 spec:
   scaleTargetRef:
     apiVersion: apps/v1
     kind: Deployment
     name: location-service
   minReplicas: 1
-  maxReplicas: 5
+  maxReplicas: 8
   metrics:
     - type: Resource
       resource:
         name: cpu
         target:
           type: Utilization
-          averageUtilization: 60
+          averageUtilization: 30
