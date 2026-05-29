@@ -162,7 +162,7 @@ function ZoomControl({ position }: { position: string }) {
   const map = useMap();
 
   useEffect(() => {
-    const zoom = (L.control as any).zoom({ position });
+    const zoom = (L.control as unknown as { zoom: (opts: { position: string }) => L.Control.Zoom }).zoom({ position });
     zoom.addTo(map);
     return () => { zoom.remove(); };
   }, [map, position]);

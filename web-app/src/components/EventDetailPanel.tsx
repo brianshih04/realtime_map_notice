@@ -28,11 +28,16 @@ export default function EventDetailPanel({ event, onClose }: EventDetailPanelPro
   // 載入留言
   useEffect(() => {
     let cancelled = false;
-    setLoading(true);
     fetchComments(event.id)
-      .then((data) => { if (!cancelled) setComments(data); })
-      .catch(() => {})
-      .finally(() => { if (!cancelled) setLoading(false); });
+      .then((data) => {
+        if (!cancelled) {
+          setComments(data);
+          setLoading(false);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setLoading(false);
+      });
     return () => { cancelled = true; };
   }, [event.id]);
 

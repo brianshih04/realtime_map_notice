@@ -26,7 +26,7 @@ jobs:
           python -m py_compile backend/shared/*.py
           python -m py_compile backend/${{ matrix.service }}/app/main.py
 
-  frontend-lint:
+  frontend-lint-build:
     name: Frontend Lint & Build
     runs-on: ubuntu-latest
     defaults:
