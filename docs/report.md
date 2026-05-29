@@ -2,9 +2,9 @@
 
 ## 摘要
 
-本專題實作一套即時校園地圖通知系統，讓使用者能在地圖上回報突發事件（如交通事故、施工、人群聚集等），系統自動根據事件座標，只通知半徑範圍內的使用者。系統採用微服務架構，以三個獨立 FastAPI 服務分別處理定位更新、事件管理與即時通知，搭配 Redis GEO 做空間查詢、Redis Pub/Sub 做事件推播，前端使用 React + Leaflet 呈現互動式地圖。部署方面使用 Docker Compose 容器化、nginx 反向代理統一入口、Cloudflare Tunnel 對外提供 HTTPS 連線。壓力測試結果顯示系統在 1000 人同時上線的規模下，事件建立、留言與查詢的成功率達 100%，整體吞吐量 271 RPS。
+本專題實作一套即時校園地圖通知系統，讓使用者能在地圖上回報突發事件（如交通事故、施工、人群聚集等），系統自動根據事件座標，只通知半徑範圍內的使用者。系統採用微服務架構，以三個獨立 FastAPI 服務分別處理定位更新、事件管理與即時通知，搭配 Redis GEO 做空間查詢、Redis Pub/Sub 做事件推播，前端使用 React + Leaflet 呈現互動式地圖。部署方面提供 Docker Compose 與 Kubernetes 雙軌部署，Kubernetes 版本透過 HPA（Horizontal Pod Autoscaler）根據 CPU 使用率自動擴縮 Pod 數量。壓力測試結果顯示，Docker Compose 部署在 1000 人同時上線時事件建立成功率達 100%；Kubernetes + HPA 部署在 3000 人並發下成功率維持 100%，而無 HPA 時 Event Service 完全崩潰（0%），證明自動擴展是高併發場景的關鍵。
 
-**關鍵字**：即時通知、地理圍欄、微服務、Redis GEO、WebSocket、Docker
+**關鍵字**：即時通知、地理圍欄、微服務、Redis GEO、WebSocket、Docker、Kubernetes、HPA
 
 ---
 
@@ -346,6 +346,9 @@
 8. Cloudflare Tunnel — https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/
 9. Gunicorn 伺服器 — https://gunicorn.org/
 10. Geolocation API — https://developer.mozilla.org/en-US/docs/Web/API/Geolocation_API
+11. Kubernetes 官方文件 — https://kubernetes.io/docs/
+12. Horizontal Pod Autoscaler — https://kubernetes.io/docs/tasks/run-application/horizontal-pod-autoscale/
+13. Minikube — https://minikube.sigs.k8s.io/docs/
 
 ---
 
