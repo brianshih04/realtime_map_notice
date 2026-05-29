@@ -265,6 +265,10 @@
 - HPA 在 300 人時即開始擴展（Location 1→4 Pods），提前應對流量增長
 - 延遲方面，有 HPA 的 P50 延遲在高併發下顯著低於無 HPA（因 Pod 數量增加分散了負載）
 
+![HPA 壓測對比圖表：成功率、延遲、Pod 數量變化](images/hpa_comparison.png)
+
+**圖 6-1：有無 HPA 壓測對比圖表**（紅線=無 HPA，綠線=有 HPA）
+
 **HPA 參數調優過程**：
 - **CPU request 5m→100m**：原始設定 5m 太低，idle 狀態下 CPU 用量即佔 60%，HPA 永遠判定需擴展，修正後 idle 只佔 3-5%
 - **targetCPU 50%→30%**：50% 擴展幅度不夠明顯，30% 讓 HPA 更早觸發擴展，Pod 數量更充足
