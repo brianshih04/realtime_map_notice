@@ -1,0 +1,41 @@
+name: CD
+
+on:
+  push:
+    branches: [dev, dev_K8s]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Deploy Docker Compose (dev branch)
+        if: github.ref == 'refs/heads/dev'
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          script: |
+            cd /home/avuser/realtime_map_notice
+            git pull origin dev
+            docker compose up --build -d
+
+      - name: Deploy Kubernetes (dev_K8s branch)
+        if: github.ref == 'refs/heads/dev_K8s'
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          script: |
+            cd /home/avuser/realtime_map_notice
+            git pull origin dev_K8s
+            kubectl apply -f k8s/namespace.yaml
+            kubectl apply -f k8s/redis.yaml
+            kubectl apply -f k8s/nginx-configmap.yaml
+            kubectl apply -f k8s/location-service.yaml
+            kubectl apply -f k8s/event-service.yaml
+            kubectl apply -f k8s/notification-service.yaml
+            kubectl apply -f k8s/web.yaml

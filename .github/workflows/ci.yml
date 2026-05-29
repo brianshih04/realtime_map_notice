@@ -1,0 +1,44 @@
+name: CI
+
+on:
+  push:
+    branches: [dev, dev_K8s]
+  pull_request:
+    branches: [dev, dev_K8s]
+
+jobs:
+  backend-lint:
+    name: Backend Lint
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        service: [location-service, event-service, notification-service]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install dependencies
+        run: pip install -r backend/${{ matrix.service }}/requirements.txt
+      - name: Check syntax
+        run: |
+          python -m py_compile backend/shared/*.py
+          python -m py_compile backend/${{ matrix.service }}/app/main.py
+
+  frontend-lint:
+    name: Frontend Lint & Build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web-app
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: web-app/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run build
