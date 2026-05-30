@@ -11,14 +11,31 @@ docker compose down                # 停掉
 
 Services bind to host ports 8001/8002/8003 (internal: 8000).
 
+### Web App
+
+```bash
+cd web-app
+npm install
+npm run dev         # Vite dev server on :5173
+npm run build       # production build → dist/
+```
+
 ## Test
 
 ```bash
-# 目前沒有 tests/，尚未實作。建立測試時：
-pytest                              # 跑全部
-pytest tests/unit/                  # 只跑 unit
-pytest tests/integration/           # 需先 docker compose up
+# Backend (no docker needed)
+pytest tests/unit/ -v                     # 21 unit tests
+pytest tests/integration/ -v              # 19 integration tests (fakeredis)
+pytest tests/unit/ tests/integration/ -v  # 40 tests total (~0.8s)
+
+# Cross-service integration (requires docker compose up -d)
+./scripts/run-integration-tests.ps1       # or: pytest tests/integration/cross_service/ -v --timeout=30
+
+# Frontend
+cd web-app && npm test                    # 21 tests (Vitest)
 ```
+
+Cross-service tests require docker-compose running. All other tests use fakeredis/mocks and run instantly.
 
 ## Architecture
 
@@ -38,6 +55,7 @@ Three independent FastAPI services share `backend/shared/` (schemas, config, red
 - CORS config: `backend/shared/cors.py` → reads `CORS_ALLOW_ORIGINS` env var.
 - Each service: `backend/<service>/app/main.py` is the FastAPI app entrypoint.
 - Dockerfile copies `backend/shared` then `backend/<service>/app` into `/app/`.
+- Frontend: React 18 + TypeScript + Vite + Leaflet. API base URLs via env vars.
 
 ## Env Vars
 
@@ -49,15 +67,14 @@ Three independent FastAPI services share `backend/shared/` (schemas, config, red
 | `DEFAULT_ALERT_RADIUS_METERS` | `500` | shared/config.py |
 | `CORS_ALLOW_ORIGINS` | `http://localhost:5173,http://localhost:3000` | shared/config.py |
 | `NOTIFICATION_SERVICE_URL` | `http://localhost:8003` | event-service only |
+| `EVENT_IDEMPOTENCY_TTL` | `300` | event-service only |
 
 ## Gotchas
 
-- `.dockerignore` doesn't exist yet — `.git` and `__pycache__` bloat build context. Create one if editing Dockerfiles.
-- Event Service notifies nearby users one-by-one (`async for` loop). For 500+ users this is slow. Use `asyncio.gather` or bypass HTTP via direct Redis Pub/Sub.
-- No WebSocket heartbeat — disconnected clients leave ghost connections.
-- No test suite exists yet. See `docs/test-plan.md` for planned test structure.
-- `web-app/` is empty (only a README). Frontend is not implemented.
 - No `.env` file tracked — copy from `.env.example`.
+- `web-app/.env` (copy from `.env.example`) for frontend service URLs.
+- Cross-service integration tests require `docker compose up -d` first.
+- `.dockerignore` is in place — `.git`, `__pycache__`, `tests/`, etc. excluded from build context.
 
 ## K8s
 
@@ -72,7 +89,7 @@ kubectl -n realtime-map-notice get pods -w
 kubectl -n realtime-map-notice get hpa -w
 ```
 
-Namespace: `realtime-map-notice`. Location Service has HPA (1–5 replicas, CPU 60%). Event/Notification: 2+ replicas.
+Namespace: `realtime-map-notice`. All three services have HPA (1–5 replicas, CPU 60%). All have liveness + readiness probes on `/healthz`.
 
 ## Load Testing
 

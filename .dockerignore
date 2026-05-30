@@ -1,0 +1,56 @@
+# Git
+.git
+.gitignore
+.gitattributes
+
+# Python
+__pycache__
+*.py[cod]
+*.egg-info
+.eggs
+dist
+build
+*.egg
+
+# Virtual environments
+.venv
+venv
+env
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Docker
+Dockerfile
+.dockerignore
+docker-compose.yml
+
+# Docs (not needed in build)
+docs
+*.md
+
+# Tests (not needed in build)
+tests
+
+# Simulator (not needed in service images)
+simulator
+
+# K8s (not needed in build)
+k8s
+
+# Web app (not needed in backend images)
+web-app
+
+# Environment
+.env
+.env.local
+
+# Claude
+.claude
