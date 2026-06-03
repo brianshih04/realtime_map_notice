@@ -24,15 +24,19 @@
 
    看成員 C 的 Redis GEO、WebSocket、附近推播責任邊界、API 與 Demo 步驟。
 
-6. [../development.md](../development.md)
+6. [part-c-test-plan.md](./part-c-test-plan.md)
+
+   看成員 C 的獨立測試計畫、手動測試案例、驗收標準與 Demo 前檢查清單。
+
+7. [../development.md](../development.md)
 
    看本機開發、API 測試、壓測與 K8s Demo 操作流程。
 
-7. [../k8s/README.md](../k8s/README.md)
+8. [../k8s/README.md](../k8s/README.md)
 
    看 Kubernetes 部署、HPA、Pod 容錯與常見問題。
 
-8. [../web-app/README.md](../web-app/README.md)
+9. [../web-app/README.md](../web-app/README.md)
 
    看前端專案建議結構、地圖服務、UI/UX、API key 與環境變數。
 
@@ -45,6 +49,7 @@
 | `docs/project-plan.md` | 全員 | 十週進度、Demo 目標、四人分工與風險 |
 | `docs/test-plan.md` | 前端、後端 | 測試策略與案例 |
 | `docs/part-c-redis-geo-websocket.md` | 成員 C | Redis GEO、WebSocket、附近推播與 Demo 步驟 |
+| `docs/part-c-test-plan.md` | 成員 C | 獨立測試計畫、手動測試案例與驗收標準 |
 | `development.md` | 開發者 | 本機啟動與測試指令 |
 | `k8s/README.md` | DevOps | Kubernetes 操作 |
 | `web-app/README.md` | 前端 | 前端實作方向、地圖服務、UI/UX、API key |
