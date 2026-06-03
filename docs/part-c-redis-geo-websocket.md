@@ -123,7 +123,143 @@ Part C 負責「通知資料怎麼即時送到」
   對齊位置更新頻率、WebSocket URL、通知 JSON 與前端顯示欄位。
 ```
 
-## 5. 資料流程
+## 5. 溝通方式與交付物
+
+Part C 和其他成員溝通時，不建議只用口頭說明。每次對齊後，最好留下簡短文件、API 範例或測試截圖，避免大家理解不同。
+
+### 與 Part B 的溝通方式
+
+Part C 和 Part B 應該用「API contract」溝通。
+
+每次討論後要確認：
+
+1. Part B 發布事件時，送給 C 或相關服務的 request 格式。
+2. Part C 回傳給 B 的 response 格式。
+3. 錯誤情境怎麼處理，例如附近沒有人、Redis 暫時不可用、Notification Service 無法送出。
+4. 欄位名稱要固定，特別是 `user_id`、`latitude`、`longitude`、`radius_meters`。
+5. 成功與失敗範例都要有。
+
+建議交付物：
+
+```text
+docs/part-c-redis-geo-websocket.md
+  API 欄位與資料流程
+
+docs/part-c-test-plan.md
+  Part C 驗收案例
+
+Swagger / FastAPI docs
+  實際 API request / response
+```
+
+建議確認句：
+
+```text
+B 發布事件時會送 latitude、longitude、radius_meters。
+C 會根據 Redis GEO 找附近 user_id，並透過 notification-service 推播。
+附近沒有人時，回傳 nearby_user_count = 0，不視為錯誤。
+```
+
+### 與 Part D 的溝通方式
+
+Part C 和 Part D 應該用「服務需求清單」溝通。
+
+每次討論後要確認：
+
+1. Part C 需要哪些服務被啟動。
+2. 每個服務使用哪個 port。
+3. 需要哪些環境變數。
+4. 健康檢查 endpoint 是什麼。
+5. Part D 部署完後，Part C 要用哪幾個步驟驗證功能。
+6. 如果 K8s 多副本部署 WebSocket，是否仍能透過 Redis Pub/Sub 正確推送通知。
+
+建議交付物：
+
+```text
+服務需求清單：
+- Redis
+- location-service
+- notification-service
+- event-service
+
+環境變數：
+- REDIS_URL
+
+健康檢查：
+- GET /healthz
+
+驗證方式：
+- POST /locations
+- GET /locations/nearby
+- WS /ws/{user_id}
+- POST /events
+```
+
+建議確認句：
+
+```text
+D 只要服務可以連到同一個 Redis，C 的 Redis GEO 與 Redis Pub/Sub 才能正常運作。
+C 不負責 K8s YAML，但會提供測試步驟給 D 驗證部署是否成功。
+```
+
+### 與 Part A 的溝通方式
+
+Part C 和 Part A 應該用「前端接收格式」溝通。
+
+每次討論後要確認：
+
+1. 前端呼叫位置更新 API 的頻率。
+2. 前端使用哪個 `user_id` 連 WebSocket。
+3. WebSocket 收到通知後，前端要顯示哪些欄位。
+4. WebSocket 斷線時，前端是否重連。
+5. 前端是否需要顯示距離 `distance_meters`。
+
+建議交付物：
+
+```json
+{
+  "event_id": "evt_001",
+  "title": "圖書館 3 樓有空位",
+  "message": "窗邊大約還有 10 個座位。",
+  "latitude": 25.0330,
+  "longitude": 121.5654,
+  "severity": "info",
+  "distance_meters": 120.5
+}
+```
+
+建議確認句：
+
+```text
+A 只要連到 ws://localhost:8003/ws/{user_id}，收到 nearby event JSON 後顯示通知卡片。
+C 會保證通知格式固定；A 不需要知道 Redis GEO 怎麼查。
+```
+
+### 建議溝通節奏
+
+```text
+每週一次全組同步：
+  確認 A/B/C/D 目前 API、port、欄位名稱有沒有變。
+
+C 與 B 每次改 API 前：
+  先更新 request / response 範例，再改程式。
+
+C 與 D 每次部署前：
+  先確認 env、port、health check、測試步驟。
+
+C 與 A 每次改通知格式前：
+  先確認前端 UI 需要哪些欄位。
+```
+
+### 溝通原則
+
+1. 口頭討論後，要把結論寫進文件或 issue。
+2. API 欄位名稱不要臨時改，改了要通知 A/B/D。
+3. `user_id` 是跨服務關鍵欄位，所有人必須用同一套格式。
+4. 經緯度欄位要固定使用 `latitude` 與 `longitude`，避免順序填反。
+5. C 的 Demo 驗收應以 `docs/part-c-test-plan.md` 為準。
+
+## 6. 資料流程
 
 ### 使用者更新位置
 
@@ -179,7 +315,7 @@ GEOSEARCH realtime_map_notice:user:locations
   BYRADIUS <radius_meters> m
 ```
 
-## 6. Part C 負責的 API
+## 7. Part C 負責的 API
 
 ### Location Service
 
@@ -253,7 +389,7 @@ Request：
 }
 ```
 
-## 7. 第一個里程碑
+## 8. 第一個里程碑
 
 Part C 的第一個里程碑要證明三件事：
 
@@ -261,7 +397,7 @@ Part C 的第一個里程碑要證明三件事：
 2. 系統可以查詢 500 公尺內的附近使用者。
 3. 附近且在線上的使用者可以收到 WebSocket 通知。
 
-## 8. 本機功能測試步驟
+## 9. 本機功能測試步驟
 
 Part C 的重點是確認 Redis GEO 與 WebSocket 功能正確。Docker Compose 與 K8s 的撰寫、維護、部署展示由 Part D 負責。
 
@@ -287,7 +423,7 @@ Part C 建議手動測試流程：
 4. 呼叫 `POST http://localhost:8002/events` 建立事件。
 5. 確認只有附近且已連線的使用者收到通知。
 
-## 9. 接下來建議實作
+## 10. 接下來建議實作
 
 Part C 建議接下來依序完成：
 
@@ -298,7 +434,7 @@ Part C 建議接下來依序完成：
 5. 記錄團隊 Demo 會使用的固定座標。
 6. 提供給 Part D 需要的服務啟動需求、環境變數與測試方式。
 
-## 10. 重要注意事項
+## 11. 重要注意事項
 
 Redis GEO 應該只儲存「目前位置查詢」資料，不要存完整使用者個人資料，也不要存永久事件歷史。
 
