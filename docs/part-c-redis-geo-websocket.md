@@ -24,7 +24,8 @@ Part C 不負責：
 2. 完整事件 CRUD。
 3. 事件長期儲存。
 4. 前端地圖 UI。
-5. Kubernetes 自動擴展與壓測操作。
+5. Dockerfile、Docker Compose 與 Kubernetes 部署設定。
+6. Kubernetes 自動擴展、Pod 容錯與壓測操作。
 
 ## 3. 目前 Repo 對應
 
@@ -183,9 +184,11 @@ Part C 的第一個里程碑要證明三件事：
 2. 系統可以查詢 500 公尺內的附近使用者。
 3. 附近且在線上的使用者可以收到 WebSocket 通知。
 
-## 7. 本機 Demo 步驟
+## 7. 本機功能測試步驟
 
-啟動服務：
+Part C 的重點是確認 Redis GEO 與 WebSocket 功能正確。Docker Compose 與 K8s 的撰寫、維護、部署展示由 Part D 負責。
+
+如果 Part D 已經準備好本機開發環境，可以用下列方式啟動服務：
 
 ```powershell
 docker compose up --build
@@ -199,7 +202,7 @@ http://localhost:8002/docs  event-service
 http://localhost:8003/docs  notification-service
 ```
 
-建議手動測試流程：
+Part C 建議手動測試流程：
 
 1. 開啟 WebSocket client，連到 `ws://localhost:8003/ws/alice`。
 2. 呼叫 `POST http://localhost:8001/locations`，將 `alice` 放在事件座標附近。
@@ -216,6 +219,7 @@ Part C 建議接下來依序完成：
 3. 讓 nearby-user 查詢回傳距離，方便除錯。
 4. 針對校園座標附近的假使用者，補上 Redis GEO 查詢測試。
 5. 記錄團隊 Demo 會使用的固定座標。
+6. 提供給 Part D 需要的服務啟動需求、環境變數與測試方式。
 
 ## 9. 重要注意事項
 
@@ -223,4 +227,4 @@ Redis GEO 應該只儲存「目前位置查詢」資料，不要存完整使用�
 
 notification-service 應該專注在「線上即時推送」。如果使用者離線，MVP 階段可以先略過通知，不需要先做未讀通知儲存。
 
-最後做 K8s Demo 前，Part C 應該先用 Docker Compose 在本機測通。Kubernetes 應該視為部署層，而不是第一個拿來除錯應用邏輯的地方。
+Part C 只需要確認 Redis GEO 與 WebSocket 功能在本機可測。Docker Compose 與 K8s 部署細節由 Part D 負責，Part C 可配合提供服務啟動需求、環境變數與測試方式。
