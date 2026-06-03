@@ -46,7 +46,84 @@ backend/event-service
   建立事件，查詢 Redis GEO 中的附近使用者，並呼叫 notification-service。
 ```
 
-## 4. 資料流程
+## 4. 跨角色溝通關係
+
+Part C 最主要的合作對象是 Part B 與 Part D，另外也需要和 Part A 對齊前端接收格式。
+
+### Part C 與 Part B：事件與通知流程
+
+Part B 負責事件 API 與商業邏輯，Part C 負責附近使用者查詢與即時推播。
+
+需要對齊：
+
+1. 發布事件後，Part B 要呼叫哪個通知流程。
+2. 事件資料格式，例如 `event_id`、`title`、`message`、`latitude`、`longitude`、`severity`。
+3. `user_id` 格式必須一致。
+4. 預設通知半徑是否為 500 公尺。
+5. 附近沒有人時要回傳什麼。
+6. 使用者離線時如何處理。MVP 階段建議不儲存未讀通知，只回報沒有線上接收者。
+
+簡單分工：
+
+```text
+Part B 決定「發生什麼事件」
+Part C 決定「通知誰、怎麼即時送出去」
+```
+
+### Part C 與 Part D：服務運行與部署需求
+
+Part D 負責 Docker、K8s、壓測與 Demo 部署。Part C 不負責撰寫或維護 Docker / K8s，但需要告訴 Part D 服務如何運行與如何驗證。
+
+Part C 需要提供給 Part D：
+
+1. 需要 Redis。
+2. 服務名稱：`location-service`、`notification-service`。
+3. 服務 port：目前本機對外為 `8001` 與 `8003`。
+4. 環境變數，例如 `REDIS_URL`。
+5. 健康檢查 endpoint：`GET /healthz`。
+6. 功能測試方式：更新位置、查附近使用者、開 WebSocket、送通知。
+7. WebSocket 多副本時需要注意 Redis Pub/Sub 路由，不能只靠單機記憶體狀態。
+
+簡單分工：
+
+```text
+Part C 說明「服務需要什麼、怎麼測」
+Part D 負責「怎麼容器化、怎麼部署、怎麼展示擴展與容錯」
+```
+
+### Part C 與 Part A：前端 WebSocket 與通知格式
+
+Part A 負責 Web App UI 與地圖畫面。Part C 需要和 Part A 對齊前端怎麼送位置，以及收到通知後要顯示什麼。
+
+需要對齊：
+
+1. 前端多久上傳一次目前位置。
+2. 前端連線的 WebSocket URL，例如 `ws://localhost:8003/ws/{user_id}`。
+3. 通知 JSON 格式。
+4. 前端要顯示哪些欄位，例如標題、訊息、距離、嚴重程度。
+5. WebSocket 斷線時，前端是否要自動重連。
+
+簡單分工：
+
+```text
+Part A 負責「畫面怎麼呈現」
+Part C 負責「通知資料怎麼即時送到」
+```
+
+### 溝通優先順序
+
+```text
+第一優先：Part C <-> Part B
+  對齊事件資料格式、通知半徑、user_id、離線處理。
+
+第二優先：Part C <-> Part D
+  對齊 Redis、port、env、health check、測試方式與部署需求。
+
+第三優先：Part C <-> Part A
+  對齊位置更新頻率、WebSocket URL、通知 JSON 與前端顯示欄位。
+```
+
+## 5. 資料流程
 
 ### 使用者更新位置
 
@@ -102,7 +179,7 @@ GEOSEARCH realtime_map_notice:user:locations
   BYRADIUS <radius_meters> m
 ```
 
-## 5. Part C 負責的 API
+## 6. Part C 負責的 API
 
 ### Location Service
 
@@ -176,7 +253,7 @@ Request：
 }
 ```
 
-## 6. 第一個里程碑
+## 7. 第一個里程碑
 
 Part C 的第一個里程碑要證明三件事：
 
@@ -184,7 +261,7 @@ Part C 的第一個里程碑要證明三件事：
 2. 系統可以查詢 500 公尺內的附近使用者。
 3. 附近且在線上的使用者可以收到 WebSocket 通知。
 
-## 7. 本機功能測試步驟
+## 8. 本機功能測試步驟
 
 Part C 的重點是確認 Redis GEO 與 WebSocket 功能正確。Docker Compose 與 K8s 的撰寫、維護、部署展示由 Part D 負責。
 
@@ -210,7 +287,7 @@ Part C 建議手動測試流程：
 4. 呼叫 `POST http://localhost:8002/events` 建立事件。
 5. 確認只有附近且已連線的使用者收到通知。
 
-## 8. 接下來建議實作
+## 9. 接下來建議實作
 
 Part C 建議接下來依序完成：
 
@@ -221,7 +298,7 @@ Part C 建議接下來依序完成：
 5. 記錄團隊 Demo 會使用的固定座標。
 6. 提供給 Part D 需要的服務啟動需求、環境變數與測試方式。
 
-## 9. 重要注意事項
+## 10. 重要注意事項
 
 Redis GEO 應該只儲存「目前位置查詢」資料，不要存完整使用者個人資料，也不要存永久事件歷史。
 
