@@ -2,7 +2,7 @@ from datetime import UTC, datetime
 
 from fastapi import FastAPI
 
-from backend.shared.config import USER_LAST_SEEN_PREFIX, USER_LOCATION_KEY
+from backend.shared.config import LAST_SEEN_TTL_SECONDS, USER_LAST_SEEN_PREFIX, USER_LOCATION_KEY
 from backend.shared.cors import configure_cors
 from backend.shared.redis_client import create_redis
 from backend.shared.schemas import LocationUpdate
@@ -27,7 +27,7 @@ async def update_location(payload: LocationUpdate) -> dict[str, str]:
     await redis.set(
         f"{USER_LAST_SEEN_PREFIX}:{payload.user_id}",
         datetime.now(UTC).isoformat(),
-        ex=60,
+        ex=LAST_SEEN_TTL_SECONDS,
     )
     return {"status": "accepted", "user_id": payload.user_id}
 

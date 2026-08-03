@@ -1,0 +1,49 @@
+# Git
+.git/
+.gitignore
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+dist/
+build/
+.venv/
+venv/
+
+# Environment
+.env
+.env.*
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Documentation (not needed in container)
+*.md
+docs/
+
+# Web app (built separately, not in backend images)
+web-app/
+
+# Tests
+tests/
+.pytest_cache/
+
+# Simulator (not needed in services)
+simulator/
+
+# Kubernetes manifests
+k8s/

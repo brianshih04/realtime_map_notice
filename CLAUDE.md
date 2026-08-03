@@ -1,5 +1,11 @@
 # CLAUDE.md
 
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+## Project Context
+
+`realtime_map_notice` is a real-time campus map notification system using microservices (FastAPI), Redis GEO, and WebSocket. The codebase and documentation are bilingual (Traditional Chinese and English). Users post map markers (events) that trigger location-based notifications to nearby users (within 500m).
+
 ## Build & Run
 
 ```bash
@@ -10,6 +16,28 @@ docker compose down                # 停掉
 ```
 
 Services bind to host ports 8001/8002/8003 (internal: 8000).
+
+## Local Development
+
+```bash
+# Set up environment (copy from .env.example)
+cp .env.example .env
+
+# Optional: Python virtual environment for simulator/scripts
+python -m venv .venv
+source .venv/bin/activate  # Linux/Mac
+# .\.venv\Scripts\Activate.ps1  # Windows PowerShell
+
+# Install simulator dependencies
+pip install -r simulator/requirements.txt
+```
+
+### API Documentation
+
+Each FastAPI service has interactive API docs:
+- Location Service: http://localhost:8001/docs
+- Event Service: http://localhost:8002/docs
+- Notification Service: http://localhost:8003/docs
 
 ## Test
 
@@ -28,6 +56,14 @@ Web App → Event Service (:8002) → Redis GEOSEARCH → Notification Service (
 ```
 
 Three independent FastAPI services share `backend/shared/` (schemas, config, redis_client, cors). Each has its own Dockerfile. Redis is the only stateful dependency.
+
+## Service Entrypoints
+
+| Service | Host Port | Internal | Main File |
+|---------|-----------|----------|-----------|
+| Location Service | 8001 | 8000 | `backend/location-service/app/main.py` |
+| Event Service | 8002 | 8000 | `backend/event-service/app/main.py` |
+| Notification Service | 8003 | 8000 | `backend/notification-service/app/main.py` |
 
 ## Code Conventions
 
@@ -82,3 +118,13 @@ python simulator/simulate_users.py --users 500 --target http://localhost:8001 --
 ```
 
 Requires: `pip install -r simulator/requirements.txt`
+
+## Additional Documentation
+
+- `readme.md` - Project overview, goals, and technology choices
+- `development.md` - Detailed development workflow and demo procedures
+- `system.md` - System architecture, API contracts, capacity planning
+- `docs/project-plan.md` - 10-week development timeline and milestones
+- `docs/test-plan.md` - Planned test structure (not yet implemented)
+- `k8s/README.md` - Kubernetes deployment and fault tolerance demos
+- `web-app/README.md` - Frontend development directions (not yet implemented)

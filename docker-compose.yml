@@ -25,7 +25,9 @@ services:
       NOTIFICATION_SERVICE_URL: http://notification-service:8000
       CORS_ALLOW_ORIGINS: http://localhost:5173,http://localhost:3000
     ports:
-      - "8002:8000"
+      - "8002-8004:8000"
+    deploy:
+      replicas: 3
     depends_on:
       - redis
       - notification-service
@@ -38,6 +40,8 @@ services:
       REDIS_URL: redis://redis:6379/0
       CORS_ALLOW_ORIGINS: http://localhost:5173,http://localhost:3000
     ports:
-      - "8003:8000"
+      - "8011-8013:8000" # 避開 8003 衝突，改用 8011 到 8013
+    deploy:
+      replicas: 3
     depends_on:
       - redis

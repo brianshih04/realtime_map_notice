@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>WebSocket Test</title>
+</head>
+<body>
+    <h1>WebSocket Test</h1>
+    <div id="output"></div>
+    <button onclick="connect()">Connect</button>
+    <script>
+        const output = document.getElementById('output');
+
+        function log(msg) {
+            output.innerHTML += '<p>' + msg + '</p>';
+            console.log(msg);
+        }
+
+        function connect() {
+            log('Attempting to connect to ws://127.0.0.1:8003/ws/test-user');
+            const ws = new WebSocket('ws://127.0.0.1:8003/ws/test-user');
+
+            ws.onopen = () => {
+                log('✅ Connection opened');
+            };
+
+            ws.onmessage = (event) => {
+                log('📩 Received: ' + event.data);
+            };
+
+            ws.onerror = (event) => {
+                log('❌ Error: ' + JSON.stringify(event));
+            };
+
+            ws.onclose = (event) => {
+                log('🔌 Connection closed. Code: ' + event.code + ', Reason: ' + event.reason);
+            };
+        }
+    </script>
+</body>
+</html>
