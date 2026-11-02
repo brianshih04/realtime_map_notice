@@ -804,17 +804,30 @@ const recenterMap = () => {
 
 const selectedFilters = ref({ info: true, warning: true, danger: true })
 
+// 依目前的篩選狀態，即時顯示／隱藏地圖上所有圖釘
+// （圖釘平時不會自動反應篩選變化——只在新同步、回正、發布時才會重建）
+const applyFiltersToMarkers = () => {
+  if (!map.value) return
+  eventsList.value.forEach(item => {
+    const marker = markerMap.value.get(item.id)
+    if (!marker) return
+    if (selectedFilters.value[item.category]) {
+      if (!map.value.hasLayer(marker)) marker.addTo(map.value)
+    } else if (map.value.hasLayer(marker)) {
+      map.value.removeLayer(marker)
+    }
+  })
+}
+
 const toggleFilter = (category) => {
   // 1. 立即啟動轉圈圈
   isFiltering.value = true
 
-  // 2. 切換分類選取狀態
+  // 2. 切換分類選取狀態，並同步顯示／隱藏地圖圖釘
   selectedFilters.value[category] = !selectedFilters.value[category]
+  applyFiltersToMarkers()
 
-  // 3. 原本的圖釘過濾與列表篩選邏輯（如果原函式有呼叫其他函式，保持原樣）
-  // 例如：filterMarkers() 或更新地圖圖釘顯示
-
-  // 4. 給予 350ms 的動畫回饋時間，結束後關閉轉圈
+  // 3. 給予 350ms 的動畫回饋時間，結束後關閉轉圈
   setTimeout(() => {
     isFiltering.value = false
   }, 350)
@@ -1071,16 +1084,10 @@ const submitEdit = async () => {
           marker.setIcon(createColoredPin(item.category, true))
           // 2. 即時更新彈跳視窗內容
           marker.bindPopup(createPopupContent(item))
-
-          // 3. 確保如果當前分類有被勾選篩選，就維持在地圖上；若沒勾選則隱藏
-          if (map.value) {
-            if (selectedFilters.value[item.category]) {
-              if (!map.value.hasLayer(marker)) map.value.addLayer(marker)
-            } else {
-              if (map.value.hasLayer(marker)) map.value.removeLayer(marker)
-            }
-          }
         }
+
+        // 3. 依新分類的篩選狀態，同步顯示／隱藏圖釘
+        applyFiltersToMarkers()
       }
       showEditModal.value = false
       triggerToast('✅ 事件已更新')
@@ -1235,6 +1242,10 @@ const createPopupContent = (item) => {
         ${item.title}
       </div>
       ${item.description && item.description !== '無詳細描述' ? `<p style="margin: 4px 0; font-size: 13px; color: #666;">${item.description}</p>` : ''}
+      ${item.imageUrl ? `
+      <div class="popup-photo" title="點擊查看大圖" onclick="window.openImageLightbox('${item.imageUrl}')">
+        <img src="${item.imageUrl}" alt="事件照片" />
+      </div>` : ''}
       <div class="popup-meta" style="font-size: 12px; color: #8e8e93; margin-top: 6px; display: flex; align-items: center; gap: 8px;">
         <span>🚶 距離約 ${item.distance || 0}m</span>
         <span>步行約 ${item.walkTime || 1} 分鐘</span>

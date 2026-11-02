@@ -1494,6 +1494,22 @@ body, html { width: 100vw; height: 100vh; overflow: hidden; font-family: -apple-
   border-radius: 10px;
   box-shadow: 0 1px 3px rgba(0,0,0,0.15);
 }
+
+/* 圖釘氣泡卡片內的事件照片（點擊開啟燈箱看大圖） */
+.popup-photo {
+  margin: 8px 0 2px;
+  border-radius: 10px;
+  overflow: hidden;
+  cursor: zoom-in;
+  background: #f0f0f0;
+}
+
+.popup-photo img {
+  display: block;
+  width: 100%;
+  max-height: 200px;
+  object-fit: cover;
+}
 /* 自己發布的圖釘：乾淨青藍色邊框*/
 .custom-pin-container.is-my-pin .pin-body {
   border: 3px solid #00d2ff !important;
