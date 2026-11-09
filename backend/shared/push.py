@@ -86,6 +86,36 @@ async def send_push_notifications(redis, user_id: str, payload: dict[str, Any]) 
     return delivered_count
 
 
+# Web Push 明文負載上限 4096 bytes（RFC 8291），加密器還需保留約 128 bytes 餘裕
+PUSH_PAYLOAD_LIMIT = 3800
+
+
+def _fit_payload(payload: dict[str, Any]) -> str:
+    """序列化推播負載；超過上限時依序剝離大型欄位、截短訊息，確保可發送。
+
+    防護網：即使上游誤將圖片等大型資料塞進負載，也不讓單則推播整封
+    被推播伺服器以 413 拒收（曾導致「帶圖事件收不到通知」）。
+    """
+    data = json.dumps(payload, ensure_ascii=False)
+    if len(data) <= PUSH_PAYLOAD_LIMIT:
+        return data
+
+    slim = dict(payload)
+    for field in ("analysis", "image_url", "image_base64", "location_label"):
+        if slim.pop(field, None) is not None:
+            data = json.dumps(slim, ensure_ascii=False)
+            if len(data) <= PUSH_PAYLOAD_LIMIT:
+                return data
+
+    message = slim.get("message") or ""
+    while len(data) > PUSH_PAYLOAD_LIMIT and len(message) > 16:
+        message = message[: int(len(message) * 0.6)]
+        slim["message"] = f"{message}…"
+        data = json.dumps(slim, ensure_ascii=False)
+    logger.warning("push payload 超過 %d bytes，已自動瘦身至 %d bytes", PUSH_PAYLOAD_LIMIT, len(data))
+    return data
+
+
 async def _send_one(subscription: dict[str, Any], payload: dict[str, Any]) -> str:
     try:
         from pywebpush import webpush
@@ -93,7 +123,7 @@ async def _send_one(subscription: dict[str, Any], payload: dict[str, Any]) -> st
         await asyncio.to_thread(
             webpush,
             subscription_info=subscription,
-            data=json.dumps(payload),
+            data=_fit_payload(payload),
             vapid_private_key=VAPID_PRIVATE_KEY,
             vapid_claims={"sub": VAPID_SUBJECT},
         )

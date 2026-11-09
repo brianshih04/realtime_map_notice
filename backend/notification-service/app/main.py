@@ -279,28 +279,34 @@ async def broadcast_to_nearby_users(broadcast: NearbyBroadcast) -> dict[str, obj
             analysis=broadcast.analysis,
         )
 
+    def build_push_payload(distance: float) -> dict:
+        """Web Push 之傳輸負載上限為 4096 bytes（RFC 8291 加密前明文上限），
+        照片等大型欄位一律剝離——通知橫幅（sw.js）僅使用標題、訊息、距離與
+        地標欄位；照片由前端點開通知後經 GET /events 取得。未剝離前，帶圖
+        事件之推播必被推播伺服器以 413 拒收，造成「有圖的事件收不到通知」。
+        """
+        slim = build_notification(distance).model_dump(mode="json")
+        slim.pop("image_base64", None)
+        slim.pop("image_url", None)
+        slim.pop("analysis", None)
+        return slim
+
     pipe = redis.pipeline(transaction=False)
     push_payloads: list[tuple[str, dict]] = []
     for user_id, distance in active_users:
         notification = build_notification(distance)
 
-        push_payloads.append(
-            (user_id, notification.model_dump(mode="json"))
-        )
-
-        # 透過 Redis pipeline 批次發布（一次送出全部 publish，取代逐一 await）
         pipe.publish(
             user_channel(user_id),
             notification.model_dump_json(),
         )
+        push_payloads.append((user_id, build_push_payload(distance)))
 
     subscriber_counts = await pipe.execute()
 
     # 離線但已訂閱推播的使用者：只送系統推播（冪等，失敗的訂閱會被清除）
     for user_id, distance in offline_push_users:
-        push_payloads.append(
-            (user_id, build_notification(distance).model_dump(mode="json"))
-        )
+        push_payloads.append((user_id, build_push_payload(distance)))
 
     push_results = await asyncio.gather(
         *(
