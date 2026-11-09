@@ -1,12 +1,13 @@
 # Keep Alive：每 10 分鐘 ping 一次 Unified API（rmn-api），作為健康監控。
-# 免費層 15 分鐘沒有流量會睡著，喚醒要 30–60 秒；期間 AI 審核（fail-closed）
-# 會讓發布被擋。此工作流讓服務保持清醒，demo 前也不用再手動熱機。
-# 注意：GitHub 排程工作在 repo 60 天沒有活動後會自動停用，屆時重新 push 即可啟用。
+# 免費層 15 分鐘沒有流量會睡著，喚醒要 30–60 秒；期間 WebSocket 斷線、
+# Web Push 無法發送，事件廣播也不會補發——這是「通知一下有一下沒有」的根源。
+# 注意：GitHub 排程在尖峰時段可能延遲數小時（2026-11 實測間隔達 3–7 小時），
+# 故 cron 避開整除分鐘；保險起見建議另加 UptimeRobot 每 5 分鐘外部 ping。
 name: Keep Alive
 
 on:
   schedule:
-    - cron: '*/10 * * * *' # 每 10 分鐘（UTC）
+    - cron: '7,17,27,37,47,57 * * * *' # 每 10 分鐘（UTC，離峰分鐘降低 GitHub 排程延遲）
   workflow_dispatch: {} # 允許手動觸發
 
 permissions:
